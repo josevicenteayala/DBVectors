@@ -13,6 +13,7 @@ Vector databases are specialized databases designed to store and query high-dime
 - **[Vector DB Comparison](docs/vector_db_comparison.md)**: Comprehensive comparison of Chroma vs. Qdrant for macOS, with recommendations for beginners
 - **[macOS Installation Guide](docs/macos_installation.md)**: Step-by-step installation instructions for ChromaDB on macOS
 - **[ChromaDB Vector Search Mechanism](docs/chroma_vector_search_mechanism.md)**: Deep dive into how ChromaDB calculates nearest vectors, including HNSW indexing, distance metrics (L2, Cosine, Inner Product), and the complete search process
+- **[Quick Reference Guide](docs/chroma_quick_reference.md)**: Concise reference for distance metrics, HNSW parameters, and common use cases
 
 ### Examples
 
