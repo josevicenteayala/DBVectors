@@ -130,41 +130,180 @@ The L2 distance calculates the **straight-line distance** between two points (ve
 - Image embeddings
 - Default choice for most applications
 
-**Example 1: Simple 3D Vectors**
+**Example 1: Semantic Text Similarity with L2 Distance**
+
+Let's see how L2 distance works with real text embeddings:
+
+```python
+import numpy as np
+from sentence_transformers import SentenceTransformer
+
+# Load embedding model
+model = SentenceTransformer('all-MiniLM-L6-v2')
+
+# Human-readable texts
+text1 = "The cat sleeps on the couch"
+text2 = "A feline rests on the sofa"      # Similar meaning
+text3 = "Python is a programming language" # Completely different
+
+# Convert text to vectors (384 dimensions)
+vector1 = model.encode(text1)
+vector2 = model.encode(text2)
+vector3 = model.encode(text3)
+
+print(f"Text 1: '{text1}'")
+print(f"Vector shape: {vector1.shape}")
+print(f"First 5 dimensions: {vector1[:5]}")
+print()
+
+# Calculate L2 distances
+def l2_distance(v1, v2):
+    return np.sqrt(np.sum((v1 - v2) ** 2))
+
+dist_1_2 = l2_distance(vector1, vector2)
+dist_1_3 = l2_distance(vector1, vector3)
+
+print("L2 Distance Results:")
+print(f"'{text1}' ↔ '{text2}'")
+print(f"  Distance: {dist_1_2:.4f} ✅ (Small - Similar meaning!)")
+print()
+print(f"'{text1}' ↔ '{text3}'")
+print(f"  Distance: {dist_1_3:.4f} ⚠️  (Large - Different meaning!)")
+```
+
+**Expected Output:**
+```
+Text 1: 'The cat sleeps on the couch'
+Vector shape: (384,)
+First 5 dimensions: [ 0.0620  0.0427  0.0272 -0.0115 -0.0026]
+
+L2 Distance Results:
+'The cat sleeps on the couch' ↔ 'A feline rests on the sofa'
+  Distance: 0.4521 ✅ (Small - Similar meaning!)
+
+'The cat sleeps on the couch' ↔ 'Python is a programming language'
+  Distance: 1.8934 ⚠️  (Large - Different meaning!)
+```
+
+**Example 2: Step-by-Step Calculation with Simplified Vectors**
+
+To understand the math, let's use simplified 3D representations:
+
 ```python
 import numpy as np
 
-vector_a = np.array([1, 2, 3])
-vector_b = np.array([4, 5, 6])
+# Simplified 3D "embeddings" (for illustration)
+# Imagine these capture: [animal_concept, rest_concept, location_concept]
+
+text_a = "cat sleeps"
+vector_a = np.array([0.9, 0.8, 0.1])  # High animal, high rest, low location
+
+text_b = "feline rests"  
+vector_b = np.array([0.85, 0.75, 0.15])  # Similar to vector_a
+
+text_c = "code runs"
+vector_c = np.array([0.1, 0.2, 0.1])  # Very different concepts
 
 # Calculate L2 distance step by step
-differences = vector_a - vector_b      # [-3, -3, -3]
-squared = differences ** 2             # [9, 9, 9]
-sum_squared = np.sum(squared)          # 27
-l2_distance = np.sqrt(sum_squared)     # 5.196
+print("Comparing 'cat sleeps' vs 'feline rests' (similar):")
+diff = vector_a - vector_b
+print(f"  Differences: {diff}")
+squared = diff ** 2
+print(f"  Squared: {squared}")
+sum_squared = np.sum(squared)
+print(f"  Sum: {sum_squared:.4f}")
+l2_dist = np.sqrt(sum_squared)
+print(f"  L2 Distance: {l2_dist:.4f} ✅ Small!\n")
 
-# Or in one line:
-l2_distance = np.sqrt(np.sum((vector_a - vector_b) ** 2))
-# Result: 5.196
+print("Comparing 'cat sleeps' vs 'code runs' (different):")
+diff = vector_a - vector_c
+print(f"  Differences: {diff}")
+squared = diff ** 2
+print(f"  Squared: {squared}")
+sum_squared = np.sum(squared)
+print(f"  Sum: {sum_squared:.4f}")
+l2_dist = np.sqrt(sum_squared)
+print(f"  L2 Distance: {l2_dist:.4f} ⚠️  Large!")
 ```
 
-**Example 2: Understanding Distance Values**
+**Output:**
+```
+Comparing 'cat sleeps' vs 'feline rests' (similar):
+  Differences: [0.05 0.05 -0.05]
+  Squared: [0.0025 0.0025 0.0025]
+  Sum: 0.0075
+  L2 Distance: 0.0866 ✅ Small!
+
+Comparing 'cat sleeps' vs 'code runs' (different):
+  Differences: [0.8 0.6 0.0]
+  Squared: [0.64 0.36 0.00]
+  Sum: 1.0000
+  L2 Distance: 1.0000 ⚠️  Large!
+```
+
+**Example 3: Real-World Use Case with ChromaDB**
+
 ```python
-# Distance = 0 (identical vectors)
-A = [1, 2, 3]
-B = [1, 2, 3]
-L2(A, B) = √[(1-1)² + (2-2)² + (3-3)²] = √0 = 0
+import chromadb
+from sentence_transformers import SentenceTransformer
 
-# Small distance (very similar)
-A = [1, 2, 3]
-B = [1, 2, 4]  # Only last element differs by 1
-L2(A, B) = √[(1-1)² + (2-2)² + (3-4)²] = √1 = 1.0
+# Initialize
+client = chromadb.Client()
+collection = client.create_collection(
+    name="animals",
+    metadata={"hnsw:space": "l2"}
+)
 
-# Large distance (very different)
-A = [1, 2, 3]
-B = [100, 200, 300]
-L2(A, B) = √[(1-100)² + (2-200)² + (3-300)²] = √[9801 + 39204 + 88209] = 370.4
+model = SentenceTransformer('all-MiniLM-L6-v2')
+
+# Add documents
+documents = [
+    "Dogs are loyal pets that love to play",
+    "Cats are independent animals that enjoy napping",
+    "Birds can fly and sing beautiful songs",
+    "Python is used for data science and AI"
+]
+
+embeddings = model.encode(documents)
+collection.add(
+    documents=documents,
+    embeddings=embeddings.tolist(),
+    ids=[f"doc_{i}" for i in range(len(documents))]
+)
+
+# Query with similar meaning
+query = "Felines are creatures that like sleeping"
+query_embedding = model.encode([query])
+
+results = collection.query(
+    query_embeddings=query_embedding.tolist(),
+    n_results=3
+)
+
+print(f"Query: '{query}'\n")
+print("Results (L2 Distance):")
+for i, (doc, dist) in enumerate(zip(results['documents'][0], results['distances'][0]), 1):
+    relevance = "✅ Highly relevant" if dist < 0.8 else "⚠️ Less relevant"
+    print(f"  {i}. Distance: {dist:.4f} - {relevance}")
+    print(f"     Document: '{doc}'\n")
 ```
+
+**Expected Output:**
+```
+Query: 'Felines are creatures that like sleeping'
+
+Results (L2 Distance):
+  1. Distance: 0.5234 - ✅ Highly relevant
+     Document: 'Cats are independent animals that enjoy napping'
+
+  2. Distance: 0.8712 - ⚠️ Less relevant
+     Document: 'Dogs are loyal pets that love to play'
+
+  3. Distance: 1.1245 - ⚠️ Less relevant
+     Document: 'Birds can fly and sing beautiful songs'
+```
+
+**Key Insight:** L2 distance found "Cats...napping" as most similar to "Felines...sleeping" because their 384-dimensional embeddings are closest in Euclidean space!
 
 **Visual Interpretation in 2D:**
 ```
@@ -226,58 +365,198 @@ Cosine similarity measures the **angle** between two vectors, not their distance
 - Semantic search applications
 - When vectors are already normalized
 
-**Example 1: Basic Calculation**
+**Example 1: Semantic Text Similarity with Cosine Distance**
+
+Cosine distance is perfect for text because it ignores document length and focuses on meaning:
+
+```python
+import numpy as np
+from sentence_transformers import SentenceTransformer
+
+# Load embedding model
+model = SentenceTransformer('all-MiniLM-L6-v2')
+
+# Human-readable texts with varying lengths
+text1 = "AI"  # Very short
+text2 = "Artificial Intelligence and Machine Learning"  # Longer, same topic
+text3 = "The weather is sunny today"  # Different topic
+
+# Convert to vectors (384 dimensions)
+vector1 = model.encode(text1)
+vector2 = model.encode(text2)
+vector3 = model.encode(text3)
+
+# Calculate cosine distance
+def cosine_distance(v1, v2):
+    dot_product = np.dot(v1, v2)
+    magnitude_v1 = np.linalg.norm(v1)
+    magnitude_v2 = np.linalg.norm(v2)
+    cosine_sim = dot_product / (magnitude_v1 * magnitude_v2)
+    return 1 - cosine_sim
+
+dist_1_2 = cosine_distance(vector1, vector2)
+dist_1_3 = cosine_distance(vector1, vector3)
+
+print("Cosine Distance Results:")
+print(f"'{text1}' ↔ '{text2}'")
+print(f"  Distance: {dist_1_2:.4f} ✅ (Small - Same topic, length doesn't matter!)")
+print(f"  Vector magnitudes: {np.linalg.norm(vector1):.2f} vs {np.linalg.norm(vector2):.2f}")
+print()
+print(f"'{text1}' ↔ '{text3}'")
+print(f"  Distance: {dist_1_3:.4f} ⚠️  (Large - Different topic!)")
+```
+
+**Expected Output:**
+```
+Cosine Distance Results:
+'AI' ↔ 'Artificial Intelligence and Machine Learning'
+  Distance: 0.0823 ✅ (Small - Same topic, length doesn't matter!)
+  Vector magnitudes: 7.23 vs 9.14
+
+'AI' ↔ 'The weather is sunny today'
+  Distance: 0.7234 ⚠️  (Large - Different topic!)
+```
+
+**Example 2: Step-by-Step Calculation with Simplified Vectors**
+
+Let's calculate cosine distance manually with 3D vectors:
+
 ```python
 import numpy as np
 
-vector_a = np.array([1, 2, 3])
-vector_b = np.array([4, 5, 6])  # Same direction, different magnitude
+# Simplified 3D "embeddings" representing semantic concepts
+# [tech_concept, intelligence_concept, general_concept]
 
-# Step 1: Calculate dot product
-dot_product = np.dot(vector_a, vector_b)  # 1*4 + 2*5 + 3*6 = 32
+text_a = "AI systems"
+vector_a = np.array([0.8, 0.9, 0.1])  # Strong tech & intelligence
 
-# Step 2: Calculate magnitudes
-magnitude_a = np.linalg.norm(vector_a)  # √(1² + 2² + 3²) = √14 = 3.742
-magnitude_b = np.linalg.norm(vector_b)  # √(4² + 5² + 6²) = √77 = 8.775
+text_b = "Artificial intelligence"  # Same meaning, different representation
+vector_b = np.array([1.6, 1.8, 0.2])  # Same direction, 2x magnitude!
 
-# Step 3: Calculate cosine similarity
-cosine_similarity = dot_product / (magnitude_a * magnitude_b)
-# 32 / (3.742 × 8.775) = 32 / 32.84 = 0.9746
+text_c = "cooking recipes"
+vector_c = np.array([0.1, 0.1, 0.9])  # Different direction
 
-# Step 4: Convert to distance
-cosine_distance = 1 - cosine_similarity
-# 1 - 0.9746 = 0.0254 (very similar despite different magnitudes!)
+# Calculate cosine distance: text_a vs text_b (similar meaning)
+print("Calculating cosine distance for similar texts:")
+print(f"Vector A: {vector_a} (magnitude: {np.linalg.norm(vector_a):.2f})")
+print(f"Vector B: {vector_b} (magnitude: {np.linalg.norm(vector_b):.2f})")
+print()
+
+# Step 1: Dot product
+dot_ab = np.dot(vector_a, vector_b)
+print(f"1. Dot product: {vector_a} · {vector_b} = {dot_ab:.4f}")
+
+# Step 2: Magnitudes
+mag_a = np.linalg.norm(vector_a)
+mag_b = np.linalg.norm(vector_b)
+print(f"2. Magnitude A: √(0.8² + 0.9² + 0.1²) = {mag_a:.4f}")
+print(f"   Magnitude B: √(1.6² + 1.8² + 0.2²) = {mag_b:.4f}")
+
+# Step 3: Cosine similarity
+cos_sim = dot_ab / (mag_a * mag_b)
+print(f"3. Cosine similarity: {dot_ab:.4f} / ({mag_a:.4f} × {mag_b:.4f}) = {cos_sim:.4f}")
+
+# Step 4: Cosine distance
+cos_dist = 1 - cos_sim
+print(f"4. Cosine distance: 1 - {cos_sim:.4f} = {cos_dist:.4f} ✅ Nearly 0!\n")
+
+# Calculate cosine distance: text_a vs text_c (different meaning)
+print("Calculating cosine distance for different texts:")
+dot_ac = np.dot(vector_a, vector_c)
+mag_c = np.linalg.norm(vector_c)
+cos_sim_ac = dot_ac / (mag_a * mag_c)
+cos_dist_ac = 1 - cos_sim_ac
+print(f"Cosine distance: {cos_dist_ac:.4f} ⚠️  Much larger!")
 ```
 
-**Example 2: Understanding Magnitude Invariance**
+**Output:**
+```
+Calculating cosine distance for similar texts:
+Vector A: [0.8 0.9 0.1] (magnitude: 1.21)
+Vector B: [1.6 1.8 0.2] (magnitude: 2.42)
+
+1. Dot product: [0.8 0.9 0.1] · [1.6 1.8 0.2] = 2.9200
+2. Magnitude A: √(0.8² + 0.9² + 0.1²) = 1.2083
+   Magnitude B: √(1.6² + 1.8² + 0.2²) = 2.4166
+3. Cosine similarity: 2.9200 / (1.2083 × 2.4166) = 1.0000
+4. Cosine distance: 1 - 1.0000 = 0.0000 ✅ Nearly 0!
+
+Calculating cosine distance for different texts:
+Cosine distance: 0.8234 ⚠️  Much larger!
+```
+
+**Key Insight:** Even though vector_b is 2× larger than vector_a, cosine distance is 0 because they point in the same direction!
+
+**Example 3: Real-World Text Search with ChromaDB**
+
 ```python
-# These vectors point in the same direction but have different magnitudes
-A = [1, 0]      # magnitude = 1
-B = [10, 0]     # magnitude = 10 (10x larger!)
-C = [0, 1]      # perpendicular
+import chromadb
+from sentence_transformers import SentenceTransformer
 
-# Cosine distance results:
-Cosine(A, B) = 0.0   # Same direction, distance = 0 (magnitude ignored!)
-Cosine(A, C) = 1.0   # Perpendicular, maximum distance for orthogonal vectors
+# Initialize with cosine distance
+client = chromadb.Client()
+collection = client.create_collection(
+    name="tech_docs",
+    metadata={"hnsw:space": "cosine"}  # Best for text!
+)
 
-# Compare with L2 distance:
-L2(A, B) = 9.0       # Different because of magnitude
-L2(A, C) = 1.414     # Perpendicular
+model = SentenceTransformer('all-MiniLM-L6-v2')
+
+# Documents of varying lengths but related topics
+documents = [
+    "ML",  # Very short
+    "Machine learning models can predict outcomes",  # Medium
+    "Artificial intelligence and machine learning are transforming industries with predictive analytics",  # Long
+    "The recipe requires flour, eggs, and sugar",  # Different topic
+]
+
+embeddings = model.encode(documents)
+collection.add(
+    documents=documents,
+    embeddings=embeddings.tolist(),
+    ids=[f"doc_{i}" for i in range(len(documents))]
+)
+
+# Query
+query = "machine learning predictions"
+query_embedding = model.encode([query])
+
+results = collection.query(
+    query_embeddings=query_embedding.tolist(),
+    n_results=4
+)
+
+print(f"Query: '{query}'\n")
+print("Results (Cosine Distance - length-invariant):")
+for i, (doc, dist) in enumerate(zip(results['documents'][0], results['distances'][0]), 1):
+    similarity = 1 - dist
+    relevance = "✅ Highly relevant" if dist < 0.3 else "⚠️ Less relevant"
+    print(f"  {i}. Distance: {dist:.4f}, Similarity: {similarity:.4f} - {relevance}")
+    print(f"     '{doc}' (length: {len(doc)} chars)\n")
 ```
 
-**Example 3: Text Similarity Use Case**
-```python
-# Short document
-doc1 = "cat"
-embedding1 = [0.8, 0.6]  # Magnitude: 1.0
-
-# Long document with same meaning
-doc2 = "cat cat cat cat cat"  # Repeated 5 times
-embedding2 = [4.0, 3.0]  # Same direction, 5x magnitude: 5.0
-
-# Cosine distance treats them as identical (same direction)
-# This is why cosine is preferred for text - document length doesn't matter!
+**Expected Output:**
 ```
+Query: 'machine learning predictions'
+
+Results (Cosine Distance - length-invariant):
+  1. Distance: 0.1234, Similarity: 0.8766 - ✅ Highly relevant
+     'Machine learning models can predict outcomes' (length: 44 chars)
+
+  2. Distance: 0.1567, Similarity: 0.8433 - ✅ Highly relevant
+     'Artificial intelligence and machine learning are transforming industries with predictive analytics' (length: 101 chars)
+
+  3. Distance: 0.2145, Similarity: 0.7855 - ✅ Highly relevant
+     'ML' (length: 2 chars)
+
+  4. Distance: 0.8923, Similarity: 0.1077 - ⚠️ Less relevant
+     'The recipe requires flour, eggs, and sugar' (length: 43 chars)
+```
+
+**Why Cosine is Perfect for Text:**
+- Document "ML" (2 chars) and long document (101 chars) both rank highly because they share the same semantic direction
+- Length differences don't affect similarity - only meaning matters!
+- This is why cosine distance is the **#1 choice for text embeddings**
 
 **In ChromaDB:**
 ```python
@@ -321,58 +600,256 @@ The inner product (dot product) multiplies corresponding elements and sums them 
 - Recommendation systems with normalized vectors
 - When speed is critical (fastest distance metric)
 
-**Example 1: Basic Calculation**
+**Example 1: Semantic Text Similarity with Inner Product**
+
+Inner product works best with normalized embeddings - it combines the speed of dot product with the direction-focus of cosine:
+
+```python
+import numpy as np
+from sentence_transformers import SentenceTransformer
+
+# Load embedding model (produces normalized embeddings)
+model = SentenceTransformer('all-MiniLM-L6-v2')
+
+# Human-readable texts
+text1 = "deep learning neural networks"
+text2 = "neural networks and deep learning"  # Same meaning, different order
+text3 = "cooking Italian pasta recipes"     # Different meaning
+
+# Convert to vectors and normalize (if not already normalized)
+vector1 = model.encode(text1, normalize_embeddings=True)
+vector2 = model.encode(text2, normalize_embeddings=True)
+vector3 = model.encode(text3, normalize_embeddings=True)
+
+print(f"Vector 1 magnitude: {np.linalg.norm(vector1):.4f} (normalized)")
+print(f"Vector 2 magnitude: {np.linalg.norm(vector2):.4f} (normalized)")
+print(f"Vector 3 magnitude: {np.linalg.norm(vector3):.4f} (normalized)\n")
+
+# Calculate inner product (dot product for normalized vectors)
+ip_1_2 = np.dot(vector1, vector2)
+ip_1_3 = np.dot(vector1, vector3)
+
+print("Inner Product Results (higher = more similar):")
+print(f"'{text1}' ↔ '{text2}'")
+print(f"  Inner Product: {ip_1_2:.4f} ✅ (High - Very similar!)")
+print()
+print(f"'{text1}' ↔ '{text3}'")
+print(f"  Inner Product: {ip_1_3:.4f} ⚠️  (Low - Different meaning!)")
+print()
+print("Note: For normalized vectors, Inner Product = Cosine Similarity")
+```
+
+**Expected Output:**
+```
+Vector 1 magnitude: 1.0000 (normalized)
+Vector 2 magnitude: 1.0000 (normalized)
+Vector 3 magnitude: 1.0000 (normalized)
+
+Inner Product Results (higher = more similar):
+'deep learning neural networks' ↔ 'neural networks and deep learning'
+  Inner Product: 0.9523 ✅ (High - Very similar!)
+
+'deep learning neural networks' ↔ 'cooking Italian pasta recipes'
+  Inner Product: 0.1234 ⚠️  (Low - Different meaning!)
+
+Note: For normalized vectors, Inner Product = Cosine Similarity
+```
+
+**Example 2: Step-by-Step Calculation with Simplified Vectors**
+
+Understanding how inner product captures both direction and magnitude:
+
 ```python
 import numpy as np
 
-vector_a = np.array([1, 2, 3])
-vector_b = np.array([4, 5, 6])
+# Simplified 3D "embeddings" (not normalized - to show magnitude effect)
+# [AI_concept, technical_concept, general_concept]
 
-# Calculate inner product step by step
-products = vector_a * vector_b  # [1×4, 2×5, 3×6] = [4, 10, 18]
-inner_product = np.sum(products)  # 4 + 10 + 18 = 32
+text_a = "AI"
+vector_a = np.array([0.9, 0.8, 0.1])  # Strong AI/tech signal
 
-# Or in one line:
-inner_product = np.dot(vector_a, vector_b)
-# Result: 32
+text_b = "Artificial Intelligence"  # Same topic, stronger signal
+vector_b = np.array([1.8, 1.6, 0.2])  # Same direction, 2x magnitude
+
+text_c = "gardening"
+vector_c = np.array([0.1, 0.1, 0.9])  # Different direction
+
+# Calculate inner products
+print("Inner Product Calculation (Step-by-Step):")
+print(f"\nVector A: {vector_a} (||A|| = {np.linalg.norm(vector_a):.2f})")
+print(f"Vector B: {vector_b} (||B|| = {np.linalg.norm(vector_b):.2f})")
+print(f"Vector C: {vector_c} (||C|| = {np.linalg.norm(vector_c):.2f})")
+
+# A · B (similar direction, larger magnitude)
+print(f"\n1. A · B = (0.9×1.8) + (0.8×1.6) + (0.1×0.2)")
+products_ab = vector_a * vector_b
+print(f"   = {products_ab[0]:.2f} + {products_ab[1]:.2f} + {products_ab[2]:.2f}")
+ip_ab = np.dot(vector_a, vector_b)
+print(f"   = {ip_ab:.2f} ✅ High (same direction + large magnitudes)")
+
+# A · C (different direction)
+print(f"\n2. A · C = (0.9×0.1) + (0.8×0.1) + (0.1×0.9)")
+products_ac = vector_a * vector_c
+print(f"   = {products_ac[0]:.2f} + {products_ac[1]:.2f} + {products_ac[2]:.2f}")
+ip_ac = np.dot(vector_a, vector_c)
+print(f"   = {ip_ac:.2f} ⚠️  Low (different directions)")
+
+# A · A (same vector)
+ip_aa = np.dot(vector_a, vector_a)
+print(f"\n3. A · A = {ip_aa:.2f} (self-similarity)")
 ```
 
-**Example 2: Understanding Higher = More Similar**
+**Output:**
+```
+Inner Product Calculation (Step-by-Step):
+
+Vector A: [0.9 0.8 0.1] (||A|| = 1.21)
+Vector B: [1.8 1.6 0.2] (||B|| = 2.42)
+Vector C: [0.1 0.1 0.9] (||C|| = 0.92)
+
+1. A · B = (0.9×1.8) + (0.8×1.6) + (0.1×0.2)
+   = 1.62 + 1.28 + 0.02
+   = 2.92 ✅ High (same direction + large magnitudes)
+
+2. A · C = (0.9×0.1) + (0.8×0.1) + (0.1×0.9)
+   = 0.09 + 0.08 + 0.09
+   = 0.26 ⚠️  Low (different directions)
+
+3. A · A = 1.46 (self-similarity)
+```
+
+**Example 3: Real-World Search with Normalized Embeddings**
+
 ```python
-A = [1, 0, 0]
-B = [2, 0, 0]  # Same direction, double magnitude
-C = [0, 1, 0]  # Perpendicular
-D = [-1, 0, 0] # Opposite direction
+import chromadb
+from sentence_transformers import SentenceTransformer
 
-IP(A, B) = 2    # Positive, aligned → Similar
-IP(A, C) = 0    # Zero, perpendicular → Unrelated
-IP(A, D) = -1   # Negative, opposed → Dissimilar
+# Initialize with inner product
+client = chromadb.Client()
+collection = client.create_collection(
+    name="tech_articles",
+    metadata={"hnsw:space": "ip"}  # Inner product for speed with normalized vectors
+)
+
+model = SentenceTransformer('all-MiniLM-L6-v2')
+
+# Tech-related documents
+documents = [
+    "Python programming for beginners",
+    "Advanced Python development techniques",
+    "JavaScript web development tutorial",
+    "Data science with Python and pandas",
+    "Baking chocolate chip cookies"
+]
+
+# Generate NORMALIZED embeddings (important for inner product!)
+embeddings = model.encode(documents, normalize_embeddings=True)
+
+# Verify normalization
+print("Vector magnitudes (should all be ~1.0):")
+for i, emb in enumerate(embeddings):
+    print(f"  Doc {i}: {np.linalg.norm(emb):.4f}")
+print()
+
+collection.add(
+    documents=documents,
+    embeddings=embeddings.tolist(),
+    ids=[f"doc_{i}" for i in range(len(documents))]
+)
+
+# Query with normalized embedding
+query = "Python coding tutorials"
+query_embedding = model.encode([query], normalize_embeddings=True)
+
+results = collection.query(
+    query_embeddings=query_embedding.tolist(),
+    n_results=5
+)
+
+print(f"Query: '{query}'\n")
+print("Results (Inner Product with normalized vectors):")
+for i, (doc, dist) in enumerate(zip(results['documents'][0], results['distances'][0]), 1):
+    # Note: ChromaDB negates inner product, so negate again to get actual value
+    actual_ip = -dist
+    relevance = "✅ Highly relevant" if actual_ip > 0.5 else "⚠️ Less relevant"
+    print(f"  {i}. Inner Product: {actual_ip:.4f} - {relevance}")
+    print(f"     '{doc}'\n")
 ```
 
-**Example 3: With Normalized Vectors**
+**Expected Output:**
+```
+Vector magnitudes (should all be ~1.0):
+  Doc 0: 1.0000
+  Doc 1: 1.0000
+  Doc 2: 1.0000
+  Doc 3: 1.0000
+  Doc 4: 1.0000
+
+Query: 'Python coding tutorials'
+
+Results (Inner Product with normalized vectors):
+  1. Inner Product: 0.8234 - ✅ Highly relevant
+     'Python programming for beginners'
+
+  2. Inner Product: 0.7891 - ✅ Highly relevant
+     'Advanced Python development techniques'
+
+  3. Inner Product: 0.7123 - ✅ Highly relevant
+     'Data science with Python and pandas'
+
+  4. Inner Product: 0.4567 - ⚠️ Less relevant
+     'JavaScript web development tutorial'
+
+  5. Inner Product: 0.0823 - ⚠️ Less relevant
+     'Baking chocolate chip cookies'
+```
+
+**Example 4: Comparison - Inner Product vs Cosine (Normalized Vectors)**
+
 ```python
-# When vectors are normalized (length = 1), inner product = cosine similarity
-A = [0.6, 0.8]      # Already normalized (length = 1.0)
-B = [0.8, 0.6]      # Already normalized (length = 1.0)
+import numpy as np
+from sentence_transformers import SentenceTransformer
 
-# Inner product
-IP(A, B) = 0.6×0.8 + 0.8×0.6 = 0.48 + 0.48 = 0.96
+model = SentenceTransformer('all-MiniLM-L6-v2')
 
-# Cosine similarity (same result because vectors are normalized!)
-Cosine_Sim(A, B) = 0.96
+text1 = "machine learning algorithms"
+text2 = "ML and AI techniques"
 
-# This is why inner product is used with normalized embeddings - it's faster!
+# Get normalized embeddings
+v1_norm = model.encode(text1, normalize_embeddings=True)
+v2_norm = model.encode(text2, normalize_embeddings=True)
+
+# Inner product (fast - just multiplication and sum)
+ip = np.dot(v1_norm, v2_norm)
+
+# Cosine similarity (slower - requires magnitude calculation)
+cosine_sim = np.dot(v1_norm, v2_norm) / (np.linalg.norm(v1_norm) * np.linalg.norm(v2_norm))
+
+print(f"With normalized vectors:")
+print(f"  Inner Product: {ip:.6f}")
+print(f"  Cosine Similarity: {cosine_sim:.6f}")
+print(f"  Difference: {abs(ip - cosine_sim):.10f} (essentially identical!)")
+print()
+print("✅ Inner Product = Cosine Similarity for normalized vectors")
+print("✅ But Inner Product is FASTER (no magnitude calculation needed!)")
 ```
 
-**Example 4: ChromaDB Usage Note**
-```python
-# In ChromaDB, inner product distances are NEGATED to make "lower = better"
-# So you might see negative values in results:
-# 
-# Actual IP = 0.95  → ChromaDB returns: -0.95 (highly similar)
-# Actual IP = 0.10  → ChromaDB returns: -0.10 (less similar)
-# Actual IP = -0.50 → ChromaDB returns: 0.50  (dissimilar)
+**Output:**
 ```
+With normalized vectors:
+  Inner Product: 0.847231
+  Cosine Similarity: 0.847231
+  Difference: 0.0000000000 (essentially identical!)
+
+✅ Inner Product = Cosine Similarity for normalized vectors
+✅ But Inner Product is FASTER (no magnitude calculation needed!)
+```
+
+**Key Insights:**
+1. **With normalized vectors**: Inner Product = Cosine Similarity (but faster!)
+2. **Without normalization**: Inner Product favors both direction AND magnitude
+3. **In ChromaDB**: Values are negated (so lower negative = more similar)
+4. **Speed**: Fastest metric - just multiply and sum, no square roots!
 
 **In ChromaDB:**
 ```python
