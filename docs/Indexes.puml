@@ -1,0 +1,107 @@
+@startuml
+title Inverted File Index (IVF)
+
+package "Vector Space Partitioning" {
+  class "Cluster Centroid 1" as C1
+  class "Cluster Centroid 2" as C2
+  class "Cluster Centroid 3" as C3
+}
+
+package "Vectors Assigned to Clusters" {
+  class "V1" as V1
+  class "V2" as V2
+  class "V3" as V3
+  class "V4" as V4
+
+  class "V5" as V5
+}
+
+C1 --> V1 : assigned
+C1 --> V2
+C2 --> V3
+C2 --> V4
+C3 --> V5
+
+class "Query Vector" as Q
+Q --> C1 : find top N nearest centroids
+C1 --> V1 : search only in selected clusters
+C1 --> V2
+
+@enduml
+
+
+@startuml
+title Hierarchical Navigable Small World (HNSW)
+
+package "Layer 2 (Top)" {
+  class "N1"
+  class "N2"
+}
+
+package "Layer 1 (Middle)" {
+  class "N3"
+  class "N4"
+  class "N5"
+}
+
+package "Layer 0 (Base)" {
+  class "N6"
+  class "N7"
+  class "N8"
+  class "N9"
+  class "N10"
+}
+
+N1 --> N2
+N1 --> N3
+N2 --> N4
+N3 --> N4
+N3 --> N5
+N4 --> N6
+N5 --> N6
+N6 --> N7
+N6 --> N8
+N7 --> N9
+N8 --> N10
+
+class "Query" as Q
+Q --> N1 : enter at top layer
+Q --> N3 : descend layer by layer
+Q --> N6 : reach nearest neighbors
+
+@enduml
+
+@startuml
+title Product Quantization (PQ)
+
+class "Original Vector\n[128-d]" as V
+
+V --> "Split into Sub-vectors\n(e.g. 4 parts)" : divide
+
+package "Sub-vector 1" {
+  class "S1"
+  S1 --> "Codebook 1" : quantize
+}
+
+package "Sub-vector 2" {
+  class "S2"
+  S2 --> "Codebook 2" : quantize
+}
+
+package "Sub-vector 3" {
+  class "S3"
+  S3 --> "Codebook 3" : quantize
+}
+
+package "Sub-vector 4" {
+  class "S4"
+  S4 --> "Codebook 4" : quantize
+}
+
+class "Compressed Vector\n[4 byte-codes]" as CV
+S1 --> CV
+S2 --> CV
+S3 --> CV
+S4 --> CV
+
+@enduml
